@@ -57,6 +57,7 @@ parser.add_argument("--show-logs", action="store_true")
 parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
+parser.add_argument("--spec-dir")
 parser.add_argument("file", nargs='*')
 
 args = parser.parse_args()
@@ -148,7 +149,10 @@ if args.format == "fp":
 # Spec tests preparation
 #
 
-spec_dir = os.path.join(".", ".spec-" + safe_fn(args.spec))
+if args.spec_dir:
+    spec_dir = args.spec_dir
+else:
+    spec_dir = os.path.join(".", ".spec-" + safe_fn(args.spec))
 
 if not (os.path.isdir(spec_dir)):
     from io import BytesIO
