@@ -539,6 +539,9 @@ for fn in jsonFiles:
                 test.expected[0]["value"] = "nan:arithmetic"
             elif test.type == "assert_trap":
                 test.expected_trap = cmd["text"]
+                # bulk.wast
+                if test.expected_trap == "uninitialized element 2":
+                    test.expected_trap = "uninitialized element"
             elif test.type == "assert_exhaustion":
                 test.expected_trap = "stack overflow"
             else:
