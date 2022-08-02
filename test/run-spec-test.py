@@ -58,6 +58,7 @@ parser.add_argument("--format", choices=["raw", "hex", "fp"], default="fp")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
 parser.add_argument("--spec-dir")
+parser.add_argument("--spectest")
 parser.add_argument("file", nargs='*')
 
 args = parser.parse_args()
@@ -494,6 +495,11 @@ for fn in jsonFiles:
     wasm_module = ""
 
     wasm3.init()
+    if args.spectest:
+        res = wasm3.load(args.spectest)
+        if res:
+            warning(res)
+        wasm3.register("spectest")
 
     print(f"Running {fn}")
 
