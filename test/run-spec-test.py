@@ -248,6 +248,9 @@ class Wasm3():
         self.loaded = fn
         return res
 
+    def register(self, name):
+        return self._run_cmd(f":register {name}\n")
+
     def invoke(self, cmd):
         return self._run_cmd(":invoke " + " ".join(map(str, cmd)) + "\n")
 
@@ -491,6 +494,8 @@ for fn in jsonFiles:
     wast_source = filename(data["source_filename"])
     wasm_module = ""
 
+    wasm3.init()
+
     print(f"Running {fn}")
 
     for cmd in data["commands"]:
@@ -509,13 +514,15 @@ for fn in jsonFiles:
             try:
                 wasm_fn = os.path.join(pathname(fn), wasm_module)
 
-                wasm3.init()
-
                 res = wasm3.load(wasm_fn)
                 if res:
                     warning(res)
             except Exception as e:
                 pass #fatal(str(e))
+
+        elif test.type == "register":
+            module_name = cmd["as"]
+            wasm3.register(module_name)
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or
