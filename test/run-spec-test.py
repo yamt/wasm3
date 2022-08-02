@@ -342,7 +342,6 @@ print(wasm3_ver)
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
-  "imports.wast:*",
   "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
