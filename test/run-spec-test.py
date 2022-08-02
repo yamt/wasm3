@@ -310,7 +310,7 @@ class Wasm3():
 def parseResults(s):
     values = s.split(", ")
     values = [x.split(":") for x in values]
-    values = [{ "type": x[1], "value": int(x[0]) } for x in values]
+    values = [{ "type": x[1], "value": int(x[0]) if x[0] != "null" else "null" } for x in values]
 
     return normalizeResults(values)
 
