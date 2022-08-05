@@ -578,11 +578,31 @@ for fn in jsonFiles:
                 warning(f"Skipped {test.source} (unknown action type '{test.action.type}')")
 
 
-        # These are irrelevant
         elif (test.type == "assert_invalid" or
               test.type == "assert_malformed" or
               test.type == "assert_uninstantiable"):
-            pass
+
+            # Load the module to confirm failure
+            wasm_module = cmd["filename"]
+
+            if args.verbose:
+                print(f"Loading {wasm_module} (expected to fail)")
+
+            stats.total_run += 1
+            try:
+                wasm_fn = os.path.join(pathname(fn), wasm_module)
+
+                res = wasm3.load(wasm_fn)
+                #if res:
+                #    warning(res)
+            except Exception as e:
+                pass #fatal(str(e))
+
+            result = re.findall(r'load/validation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
+            if len(result) > 0:
+                stats.success += 1
+            else:
+                stats.failed += 1
 
         # Others - report as skipped
         else:
