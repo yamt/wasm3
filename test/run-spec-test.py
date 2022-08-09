@@ -477,6 +477,37 @@ def runInvoke(test):
         showTestResult()
         #sys.exit(1)
 
+def confirmLoadFailure(wasm_module, test):
+    if args.verbose:
+        print(f"Loading {wasm_module} (expected to fail)")
+
+    stats.total_run += 1
+    res = None
+    try:
+        wasm_fn = os.path.join(pathname(fn), wasm_module)
+
+        res = wasm3.load(wasm_fn)
+        #if res:
+        #    warning(res)
+    except Exception as e:
+        pass #fatal(str(e))
+
+    if test.type == "assert_uninstantiable":
+        result = re.findall(r'instantiation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
+    else:
+        result = re.findall(r'load/validation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
+    test_id = f"{test.source} {test.wasm} {test.type}"
+    #print(f"Test:     {ansi.HEADER}{test_id}{ansi.ENDC}")
+    #print(f"Actual:   {ansi.WARNING}{result}{ansi.ENDC}")
+    if len(result) > 0:
+        stats.success += 1
+    else:
+        stats.failed += 1
+        print(f"{ansi.FAIL}=======================")
+        print(f"Test:     {ansi.HEADER}{test_id}{ansi.ENDC}")
+        print(f"Expected: {ansi.OKGREEN}{test.expected_failure}{ansi.ENDC}")
+        print(f"Actual:   {ansi.WARNING}{res}{ansi.ENDC}")
+
 if args.file:
     jsonFiles = args.file
 else:
@@ -582,27 +613,18 @@ for fn in jsonFiles:
               test.type == "assert_malformed" or
               test.type == "assert_uninstantiable"):
 
-            # Load the module to confirm failure
             wasm_module = cmd["filename"]
-
-            if args.verbose:
-                print(f"Loading {wasm_module} (expected to fail)")
-
-            stats.total_run += 1
-            try:
-                wasm_fn = os.path.join(pathname(fn), wasm_module)
-
-                res = wasm3.load(wasm_fn)
-                #if res:
-                #    warning(res)
-            except Exception as e:
-                pass #fatal(str(e))
-
-            result = re.findall(r'load/validation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
-            if len(result) > 0:
-                stats.success += 1
+            test.wasm = wasm_module
+            test.expected_failure = cmd["text"]
+            if re.findall("\.wat$", wasm_module):
+                # i couldn't find a nice way to convert some of malformed
+                # modules to *.wasm.
+                # wast2json leaves them as "*.wat".
+                # for now, just skip them.
+                stats.skipped += 1
+                warning(f"Skipped {test.type} {wasm_module}")
             else:
-                stats.failed += 1
+                confirmLoadFailure(wasm_module, test)
 
         # Others - report as skipped
         else:
