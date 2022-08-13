@@ -99,7 +99,7 @@ def binaryToFloat(num, t):
 
 def escape_str(s):
     if s == "":
-        return r'\x00'
+        return r'""'
 
     if all((ord(c) < 128 and c.isprintable() and c not in " \n\r\t\\") for c in s):
         return s
