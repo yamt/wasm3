@@ -343,7 +343,6 @@ print(wasm3_ver)
 
 blacklist = Blacklist([
   "float_exprs.wast:* f32.nonarithmetic_nan_bitpattern*",
-  "names.wast:* *.wasm \\x00*", # names that start with '\0'
 ])
 
 if wasm3_ver in Blacklist(["* on i386* MSVC *", "* on i386* Clang * for Windows"]):
