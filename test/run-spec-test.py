@@ -491,7 +491,9 @@ def confirmLoadFailure(wasm_module, test):
     except Exception as e:
         pass #fatal(str(e))
 
-    if test.type == "assert_uninstantiable":
+    if res is None:
+        result = []
+    elif test.type == "assert_uninstantiable":
         result = re.findall(r'instantiation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
     else:
         result = re.findall(r'load/validation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
