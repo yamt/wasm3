@@ -227,7 +227,7 @@ class Wasm3():
                 self.run()
                 try:
                     if self.loaded:
-                        self.load(self.loaded)
+                        self.load(None, self.loaded)
                 except Exception as e:
                     pass
                 break
@@ -241,19 +241,28 @@ class Wasm3():
     def version(self):
         return self._run_cmd(f":version\n")
 
-    def load(self, fn):
+    def load(self, modname, fn):
         self.loaded = None
         with open(fn,"rb") as f:
             wasm = f.read()
-        res = self._run_cmd(f":load-hex {len(wasm)}\n{wasm.hex()}\n")
+        if modname is None:
+            res = self._run_cmd(f":load-hex {len(wasm)}\n{wasm.hex()}\n")
+        else:
+            res = self._run_cmd(f":module {modname} load-hex {len(wasm)}\n{wasm.hex()}\n")
         self.loaded = fn
         return res
 
-    def register(self, name):
-        return self._run_cmd(f":register {name}\n")
+    def register(self, modname, name):
+        if modname is None:
+            return self._run_cmd(f":register {name}\n")
+        else:
+            return self._run_cmd(f":module {modname} register {name}\n")
 
-    def invoke(self, cmd):
-        return self._run_cmd(":invoke " + " ".join(map(str, cmd)) + "\n")
+    def invoke(self, modname, cmd):
+        if modname is None:
+            return self._run_cmd(":invoke " + " ".join(map(str, cmd)) + "\n")
+        else:
+            return self._run_cmd(f":module {modname} invoke {' '.join(map(str, cmd))}\n")
 
     def _run_cmd(self, cmd):
         if self.autorestart and not self._is_running():
@@ -380,7 +389,7 @@ def runInvoke(test):
         test.cmd.append(arg['value'])
         displayArgs.append(formatValue(arg['value'], arg['type']))
 
-    test_id = f"{test.source} {test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
+    test_id = f"{test.source} {test.action.module or test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
     if test_id in blacklist and not args.all:
         warning(f"Skipped {test_id} (blacklisted)")
         stats.skipped += 1
@@ -397,7 +406,7 @@ def runInvoke(test):
     force_fail = False
 
     try:
-        output = wasm3.invoke(test.cmd)
+        output = wasm3.invoke(test.action.module, test.cmd)
     except Exception as e:
         actual = f"<{e}>"
         force_fail = True
@@ -485,7 +494,7 @@ def confirmLoadFailure(wasm_module, test):
     try:
         wasm_fn = os.path.join(pathname(fn), wasm_module)
 
-        res = wasm3.load(wasm_fn)
+        res = wasm3.load(None, wasm_fn)
         #if res:
         #    warning(res)
     except Exception as e:
@@ -528,10 +537,10 @@ for fn in jsonFiles:
 
     wasm3.init()
     if args.spectest:
-        res = wasm3.load(args.spectest)
+        res = wasm3.load(None, args.spectest)
         if res:
             warning(res)
-        wasm3.register("spectest")
+        wasm3.register(None, "spectest")
 
     print(f"Running {fn}")
 
@@ -544,6 +553,7 @@ for fn in jsonFiles:
 
         if test.type == "module":
             wasm_module = cmd["filename"]
+            module_name = cmd.get("name")
 
             if args.verbose:
                 print(f"Loading {wasm_module}")
@@ -551,7 +561,7 @@ for fn in jsonFiles:
             try:
                 wasm_fn = os.path.join(pathname(fn), wasm_module)
 
-                res = wasm3.load(wasm_fn)
+                res = wasm3.load(module_name, wasm_fn)
                 if res:
                     warning(res)
             except Exception as e:
@@ -559,7 +569,7 @@ for fn in jsonFiles:
 
         elif test.type == "register":
             module_name = cmd["as"]
-            wasm3.register(module_name)
+            wasm3.register(cmd.get("name"), module_name)
 
         elif (  test.type == "action" or
                 test.type == "assert_return" or
@@ -595,13 +605,6 @@ for fn in jsonFiles:
 
             test.action = dotdict(cmd["action"])
             if test.action.type == "invoke":
-
-                # TODO: invoking in modules not implemented
-                if test.action.module:
-                    stats.skipped += 1
-                    warning(f"Skipped {test.source} (invoke in module)")
-                    continue
-
                 test.action.field = escape_str(test.action.field)
 
                 runInvoke(test)
