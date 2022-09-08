@@ -502,7 +502,7 @@ def confirmLoadFailure(wasm_module, test):
 
     if res is None:
         result = []
-    elif test.type == "assert_uninstantiable":
+    elif test.type in {"assert_uninstantiable", "assert_unlinkable"}:
         result = re.findall(r'instantiation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
     else:
         result = re.findall(r'load/validation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
@@ -615,6 +615,7 @@ for fn in jsonFiles:
 
         elif (test.type == "assert_invalid" or
               test.type == "assert_malformed" or
+              test.type == "assert_unlinkable" or
               test.type == "assert_uninstantiable"):
 
             wasm_module = cmd["filename"]
