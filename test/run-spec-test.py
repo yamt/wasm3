@@ -606,8 +606,12 @@ def confirmLoadFailure(wasm_module, test):
 
     if res is None:
         result = []
-    elif test.type in {"assert_uninstantiable", "assert_unlinkable"}:
+    elif test.type in {"assert_unlinkable"}:
         result = re.findall(r'instantiation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
+    elif test.type in {"assert_uninstantiable"}:
+        # Note: assert_trap on a module in wast is converted to
+        # assert_uninstantiable in json by wast2json
+        result = re.findall(r'Error: \[trap\] (.*?) \(', "\n" + res + "\n", re.MULTILINE)
     else:
         result = re.findall(r'load/validation error: (.*?)$', "\n" + res + "\n", re.MULTILINE)
     test_id = f"{test.source} {test.wasm} {test.type}"
