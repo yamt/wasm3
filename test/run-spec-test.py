@@ -264,6 +264,12 @@ class Wasm3():
         else:
             return self._run_cmd(f":module {modname} invoke {' '.join(map(str, cmd))}\n")
 
+    def global_get(self, modname, global_name):
+        if modname is None:
+            return self._run_cmd(f":global-get {global_name}\n")
+        else:
+            return self._run_cmd(f":module {modname} global-get {global_name}\n")
+
     def _run_cmd(self, cmd):
         if self.autorestart and not self._is_running():
             self.restart()
