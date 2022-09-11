@@ -485,6 +485,104 @@ def runInvoke(test):
         showTestResult()
         #sys.exit(1)
 
+def runGet(test):
+    test.global_name = test.action.field
+
+    test_id = f"{test.source} {test.action.module or test.wasm} {test.global_name}"
+    if test_id in blacklist and not args.all:
+        warning(f"Skipped {test_id} (blacklisted)")
+        stats.skipped += 1
+        return
+
+    if args.verbose:
+        print(f"Running {test_id}")
+
+    stats.total_run += 1
+
+    output = ""
+    actual = None
+    actual_val = None
+    force_fail = False
+
+    try:
+        output = wasm3.global_get(test.action.module, test.global_name)
+    except Exception as e:
+        actual = f"<{e}>"
+        force_fail = True
+
+    # Parse the actual output
+    if not actual:
+        result = re.findall(r'Result: (.*?)$', "\n" + output + "\n", re.MULTILINE)
+        if len(result) > 0:
+            actual = "result " + result[-1]
+            actual_val = result[0]
+    if not actual:
+        result = re.findall(r'Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
+        if len(result) > 0:
+            actual = "trap " + result[-1]
+    if not actual:
+        result = re.findall(r'Error: (.*?)$', "\n" + output + "\n", re.MULTILINE)
+        if len(result) > 0:
+            actual = "error " + result[-1]
+    if not actual:
+        actual = "<No Result>"
+        force_fail = True
+
+    if actual == "error no operation ()":
+        actual = "<Not Implemented>"
+        stats.missing += 1
+        force_fail = True
+    elif actual == "<Crashed>":
+        stats.crashed += 1
+        force_fail = True
+    elif actual == "<Timeout>":
+        stats.timeout += 1
+        force_fail = True
+
+    # Prepare the expected result
+    expect = None
+    if "expected" in test:
+        if len(test.expected) == 0:
+            expect = "result <Empty Stack>"
+        else:
+            if actual_val is not None:
+                actual = "result " + combineResults(parseResults(actual_val))
+            expect = "result " + combineResults(normalizeResults(test.expected))
+
+    elif "expected_trap" in test:
+        if test.expected_trap in trapmap:
+            test.expected_trap = trapmap[test.expected_trap]
+
+        expect = "trap " + str(test.expected_trap)
+    elif "expected_anything" in test:
+        expect = "<Anything>"
+    else:
+        expect = "<Unknown>"
+
+    def showTestResult():
+        print(" ----------------------")
+        print(f"Test:     {ansi.HEADER}{test_id}{ansi.ENDC}")
+        print(f"Expected: {ansi.OKGREEN}{expect}{ansi.ENDC}")
+        print(f"Actual:   {ansi.WARNING}{actual}{ansi.ENDC}")
+        if args.show_logs and len(output):
+            print(f"Log:")
+            print(output)
+
+    log.write(f"{test.source}\t|\t{test.wasm} {test.action.field}\t=>\t\t")
+    if actual == expect or (expect == "<Anything>" and not force_fail):
+        stats.success += 1
+        log.write(f"OK: {actual}\n")
+        if args.line:
+            showTestResult()
+    else:
+        stats.failed += 1
+        log.write(f"FAIL: {actual}, should be: {expect}\n")
+        if args.silent:
+            return
+
+        showTestResult()
+        #sys.exit(1)
+
 def confirmLoadFailure(wasm_module, test):
     if args.verbose:
         print(f"Loading {wasm_module} (expected to fail)")
@@ -608,6 +706,10 @@ for fn in jsonFiles:
                 test.action.field = escape_str(test.action.field)
 
                 runInvoke(test)
+            elif test.action.type == "get":
+                test.action.field = escape_str(test.action.field)
+
+                runGet(test)
             else:
                 stats.skipped += 1
                 warning(f"Skipped {test.source} (unknown action type '{test.action.type}')")
