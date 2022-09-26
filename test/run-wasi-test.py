@@ -69,26 +69,26 @@ commands_full = [
     "wasm":           "./wasi/smallpt/smallpt-ex-mv.wasm",
     "args":           ["16", "64"],
     "expect_sha1":    "d85df3561eb15f6f0e6f20d5640e8e1306222c6d"
-  }, {
-    "name":           "mal",
-    "wasm":           "./wasi/mal/mal.wasm",
-    "args":           ["./wasi/mal/test-fib.mal", "16"],
-    "expect_pattern": "987\n",
+#  }, {
+#    "name":           "mal",
+#    "wasm":           "./wasi/mal/mal.wasm",
+#    "args":           ["./wasi/mal/test-fib.mal", "16"],
+#    "expect_pattern": "987\n",
   }, {
     "name":           "STREAM",
     "wasm":           "./wasi/stream/stream.wasm",
     "expect_pattern": "----*Solution Validates:*on all three arrays*----*"
-  }, {
-    # TODO "if":             { "file_exists": "./self-hosting/wasm3-fib.wasm" },
-    "name":           "Self-hosting",
-    "wasm":           "./self-hosting/wasm3-fib.wasm",
-    "expect_pattern": "wasm3 on WASM*Result: 832040*Elapsed: * ms*"
-  }, {
-    "name":           "Brotli",
-    "stdin":          "./wasi/brotli/alice29.txt",
-    "wasm":           "./wasi/brotli/brotli.wasm",
-    "args":           ["-c", "-f"],
-    "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
+#  }, {
+#    # TODO "if":             { "file_exists": "./self-hosting/wasm3-fib.wasm" },
+#    "name":           "Self-hosting",
+#    "wasm":           "./self-hosting/wasm3-fib.wasm",
+#    "expect_pattern": "wasm3 on WASM*Result: 832040*Elapsed: * ms*"
+#  }, {
+#    "name":           "Brotli",
+#    "stdin":          "./wasi/brotli/alice29.txt",
+#    "wasm":           "./wasi/brotli/brotli.wasm",
+#    "args":           ["-c", "-f"],
+#    "expect_sha1":    "8eacda4b80fc816cad185330caa7556e19643dff"
   }, {
     "name":           "CoreMark",
     "wasm":           "./wasi/coremark/coremark.wasm",
