@@ -648,6 +648,8 @@ for fn in jsonFiles:
         res = wasm3.load(None, args.spectest)
         if res:
             warning(res)
+            if "Error:" in res:
+                fatal(f"{wasm_module} load failed: {res}")
         wasm3.register(None, "spectest")
 
     print(f"Running {fn}")
@@ -672,8 +674,10 @@ for fn in jsonFiles:
                 res = wasm3.load(module_name, wasm_fn)
                 if res:
                     warning(res)
+                    if "Error:" in res:
+                        fatal(f"{wasm_module} load failed: {res}")
             except Exception as e:
-                pass #fatal(str(e))
+                fatal(str(e))
 
         elif test.type == "register":
             module_name = cmd["as"]
