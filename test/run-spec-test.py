@@ -427,6 +427,7 @@ def runInvoke(test):
         result = re.findall(r'Error: \[trap\] (.*?) \(', "\n" + output + "\n", re.MULTILINE)
         if len(result) > 0:
             actual = "trap " + result[-1]
+            force_fail = True
     if not actual:
         result = re.findall(r'Error: (.*?)$', "\n" + output + "\n", re.MULTILINE)
         if len(result) > 0:
