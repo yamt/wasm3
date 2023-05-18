@@ -323,10 +323,17 @@ class Wasm3():
 # Multi-value result handling
 #
 
+def parseValue(v, t):
+    if t != "v128":
+        if v == "null":
+            return v
+        return int(v)
+    return v
+
 def parseResults(s):
     values = s.split(", ")
     values = [x.split(":") for x in values]
-    values = [{ "type": x[1], "value": int(x[0]) if x[0] != "null" else "null" } for x in values]
+    values = [{ "type": x[1], "value": parseValue(x[0], x[1]) } for x in values]
 
     return normalizeResults(values)
 
@@ -339,6 +346,8 @@ def normalizeResults(values):
                 x["value"] = "nan:any"
             else:
                 x["value"] = formatValue(v, t)
+        elif t == "v128":
+            x["value"] = normalizeValue(v, t, x.get("lane_type"))
         else:
             x["value"] = formatValue(v, t)
     return values
@@ -387,12 +396,28 @@ trapmap = {
   "unreachable": "unreachable executed"
 }
 
+def normalizeValue(value, t, lane_type):
+    if t != "v128":
+        return value
+    if lane_type == "i8":
+        return "".join([f"{int(x):02x}" for x in value[::-1]])
+    if lane_type == "i16":
+        return "".join([f"{int(x):04x}" for x in value[::-1]])
+    if lane_type in ("i32", "f32"):
+        return "".join([f"{int(x):08x}" for x in value[::-1]])
+    if lane_type in ("i64", "f64"):
+        return "".join([f"{int(x):016x}" for x in value[::-1]])
+    assert lane_type is None
+    assert isinstance(value, str)
+    return value
+
 def runInvoke(test):
     test.cmd = [test.action.field]
 
     displayArgs = []
     for arg in test.action.args:
-        test.cmd.append(arg['value'])
+        v = normalizeValue(arg['value'], arg['type'], arg.get("lane_type"))
+        test.cmd.append(v)
         displayArgs.append(formatValue(arg['value'], arg['type']))
 
     test_id = f"{test.source} {test.action.module or test.wasm} {test.cmd[0]}({', '.join(test.cmd[1:])})"
