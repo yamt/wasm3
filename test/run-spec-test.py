@@ -331,15 +331,14 @@ def parseValue(v, t):
         return int(v)
     return v
 
-def parseResults(s):
+def parseResults(s, expected):
     values = s.split(", ")
     values = [x.split(":") for x in values]
     values = [{ "type": x[1], "value": parseValue(x[0], x[1]) } for x in values]
+    return normalizeResults(values, expected)
 
-    return normalizeResults(values)
-
-def normalizeResults(values):
-    for x in values:
+def normalizeResults(values, expected=None):
+    for i, x in enumerate(values):
         t = x["type"]
         v = x["value"]
         if t == "f32" or t == "f64":
@@ -348,7 +347,10 @@ def normalizeResults(values):
             else:
                 x["value"] = formatValue(v, t)
         elif t == "v128":
-            x["value"] = normalizeValue(v, t, x.get("lane_type"))
+            lt = x.get("lane_type")
+            if lt is None:
+               lt = expected[i].get("lane_type")
+            x["value"] = normalizeValue(v, t, lt)
         else:
             x["value"] = formatValue(v, t)
     return values
@@ -397,20 +399,60 @@ trapmap = {
   "unreachable": "unreachable executed"
 }
 
+def normalizeLane(v, t, bits):
+    if t == "f32":
+        if v == "nan:canonical":
+            v = 0x7fc00000
+        if v == "nan:arithmetic":
+            v = 0x7fc00001
+    if t == "f64":
+        if v == "nan:canonical":
+            v = 0x7ff8000000000000
+        if v == "nan:arithmetic":
+            v = 0x7ff8000000000001
+    return f"{int(v):0{str(bits // 4)}x}"
+
+def normalizeNan(v, bits):
+    i = int(v, 16)
+    if bits == 32:
+        mask = 0x7fc00000
+        pmask = 0x00300000
+    else:
+        mask = 0x7ff8000000000000
+        pmask = 0x0007ffffffffffff
+    if (i & mask) == mask:
+        if (i & pmask) != 0:
+            i = mask + 1
+        else:
+            i = mask
+    return f"{i:0{bits // 4}x}"
+
 def normalizeValue(value, t, lane_type):
     if t != "v128":
         return value
+    # if it's already a string, nomalize nans.
+    if isinstance(value, str) and len(value) == 128 // 4:
+        if lane_type in ("f32", "f64"):
+            if lane_type == "f32":
+                bits = 32
+            if lane_type == "f64":
+                bits = 64
+            n = bits // 4
+            cs = [value[i:i+n] for i in range(0, len(value), n)]
+            cs = [normalizeNan(x, bits) for x in cs]
+            x = "".join(cs)
+            assert len(x) == 128 // 4
+            return x
+        else:
+            return value
     if lane_type == "i8":
-        return "".join([f"{int(x):02x}" for x in value[::-1]])
+        return "".join([normalizeLane(x, lane_type, 8) for x in value[::-1]])
     if lane_type == "i16":
-        return "".join([f"{int(x):04x}" for x in value[::-1]])
+        return "".join([normalizeLane(x, lane_type, 16) for x in value[::-1]])
     if lane_type in ("i32", "f32"):
-        return "".join([f"{int(x):08x}" for x in value[::-1]])
+        return "".join([normalizeLane(x, lane_type, 32) for x in value[::-1]])
     if lane_type in ("i64", "f64"):
-        return "".join([f"{int(x):016x}" for x in value[::-1]])
-    assert lane_type is None
-    assert isinstance(value, str)
-    return value
+        return "".join([normalizeLane(x, lane_type, 64) for x in value[::-1]])
 
 def runInvoke(test):
     test.cmd = [test.action.field]
@@ -480,7 +522,7 @@ def runInvoke(test):
             expect = "result <Empty Stack>"
         else:
             if actual_val is not None:
-                actual = "result " + combineResults(parseResults(actual_val))
+                actual = "result " + combineResults(parseResults(actual_val, test.expected))
             expect = "result " + combineResults(normalizeResults(test.expected))
 
     elif "expected_trap" in test:
@@ -579,7 +621,7 @@ def runGet(test):
             expect = "result <Empty Stack>"
         else:
             if actual_val is not None:
-                actual = "result " + combineResults(parseResults(actual_val))
+                actual = "result " + combineResults(parseResults(actual_val, test.expected))
             expect = "result " + combineResults(normalizeResults(test.expected))
 
     elif "expected_trap" in test:
