@@ -347,10 +347,13 @@ def normalizeResults(values, expected=None):
             else:
                 x["value"] = formatValue(v, t)
         elif t == "v128":
-            lt = x.get("lane_type")
-            if lt is None:
-               lt = expected[i].get("lane_type")
-            x["value"] = normalizeValue(v, t, lt)
+            if expected is not None:
+                lt = expected[i].get("lane_type")
+                expected_value = expected[i]["value"]
+            else:
+                lt = x.get("lane_type")
+                expected_value = None
+            x["value"] = normalizeValue(v, t, lt, expected_value)
         else:
             x["value"] = formatValue(v, t)
     return values
@@ -412,22 +415,31 @@ def normalizeLane(v, t, bits):
             v = 0x7ff8000000000001
     return f"{int(v):0{str(bits // 4)}x}"
 
-def normalizeNan(v, bits):
+def normalizeNan(v, bits, arith_expected):
     i = int(v, 16)
     if bits == 32:
-        mask = 0x7fc00000
-        pmask = 0x00300000
+        expbits = 8
+        fracbits = 23
     else:
-        mask = 0x7ff8000000000000
-        pmask = 0x0007ffffffffffff
-    if (i & mask) == mask:
-        if (i & pmask) != 0:
-            i = mask + 1
-        else:
-            i = mask
+        expbits = 11
+        fracbits = 52
+    expmask = ((1 << expbits) - 1) << fracbits
+    if (i & expmask) == expmask:
+        fracmask = (1 << fracbits) - 1
+        if (i & fracmask) != 0:
+            canon = 1 << (fracbits - 1);
+            signmask = 1 << (expbits + fracbits)
+            if (i & fracmask) == canon and not arith_expected:
+                # in wasm, nan with both sign are canonical
+                i = expmask | canon
+            elif (i & fracmask) >= canon:
+                i = (expmask | canon) + 1
+            else:
+                # sNaN. do wo care?
+                pass
     return f"{i:0{bits // 4}x}"
 
-def normalizeValue(value, t, lane_type):
+def normalizeValue(value, t, lane_type, expected_value=None):
     if t != "v128":
         return value
     # if it's already a string, nomalize nans.
@@ -439,8 +451,16 @@ def normalizeValue(value, t, lane_type):
                 bits = 64
             n = bits // 4
             cs = [value[i:i+n] for i in range(0, len(value), n)]
-            cs = [normalizeNan(x, bits) for x in cs]
-            x = "".join(cs)
+            cs2 = []
+            expected_value = expected_value[::-1]
+            for i, v in enumerate(cs):
+                if expected_value is not None and expected_value[i] in ("nan:canonical", "nan:arithmetic"):
+                    # check the normalized value
+                    cs2.append(normalizeNan(v, bits, expected_value[i] == "nan:arithmetic"))
+                else:
+                    # check the exact value
+                    cs2.append(v)
+            x = "".join(cs2)
             assert len(x) == 128 // 4
             return x
         else:
