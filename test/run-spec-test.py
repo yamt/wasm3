@@ -332,6 +332,7 @@ def parseValue(v, t):
     return v
 
 def parseResults(s, expected):
+    assert expected is not None
     values = s.split(", ")
     values = [x.split(":") for x in values]
     values = [{ "type": x[1], "value": parseValue(x[0], x[1]) } for x in values]
@@ -342,8 +343,14 @@ def normalizeResults(values, expected=None):
         t = x["type"]
         v = x["value"]
         if t == "f32" or t == "f64":
-            if v == "nan:canonical" or v == "nan:arithmetic" or math.isnan(binaryToFloat(v, t)):
-                x["value"] = "nan:any"
+            if expected is not None:
+                expected_value = expected[i]["value"]
+                if expected_value in ("nan:canonical", "nan:arithmetic") and math.isnan(binaryToFloat(v, t)):
+                    v = normalizeNanInt(v, t, expected_value == "nan:arithmetic")
+                x["value"] = formatValue(v, t)
+            elif v in ("nan:canonical", "nan:arithmetic") or math.isnan(binaryToFloat(v, t)):
+                v = nanExpectedStrToInt(v, t)
+                x["value"] = formatValue(v, t)
             else:
                 x["value"] = formatValue(v, t)
         elif t == "v128":
@@ -402,7 +409,7 @@ trapmap = {
   "unreachable": "unreachable executed"
 }
 
-def normalizeLane(v, t, bits):
+def nanExpectedStrToInt(v, t):
     if t == "f32":
         if v == "nan:canonical":
             v = 0x7fc00000
@@ -413,11 +420,16 @@ def normalizeLane(v, t, bits):
             v = 0x7ff8000000000000
         if v == "nan:arithmetic":
             v = 0x7ff8000000000001
+    return v
+
+def normalizeLane(v, t, bits):
+    v = nanExpectedStrToInt(v, t)
     return f"{int(v):0{str(bits // 4)}x}"
 
-def normalizeNan(v, bits, arith_expected):
-    i = int(v, 16)
-    if bits == 32:
+def normalizeNanInt(i, t, arith_expected):
+    assert t in ("f32", "f64")
+    assert isinstance(i, int)
+    if t == "f32":
         expbits = 8
         fracbits = 23
     else:
@@ -437,6 +449,17 @@ def normalizeNan(v, bits, arith_expected):
             else:
                 # sNaN. do wo care?
                 pass
+    return i
+
+def normalizeNanStr(v, t, arith_expected):
+    assert t in ("f32", "f64")
+    assert isinstance(v, str)
+    if t == "f32":
+        bits = 32
+    else:
+        bits = 64
+    i = int(v, 16)
+    i = normalizeNanInt(i, t, arith_expected)
     return f"{i:0{bits // 4}x}"
 
 def normalizeValue(value, t, lane_type, expected_value=None):
@@ -456,7 +479,7 @@ def normalizeValue(value, t, lane_type, expected_value=None):
             for i, v in enumerate(cs):
                 if expected_value is not None and expected_value[i] in ("nan:canonical", "nan:arithmetic"):
                     # check the normalized value
-                    cs2.append(normalizeNan(v, bits, expected_value[i] == "nan:arithmetic"))
+                    cs2.append(normalizeNanStr(v, lane_type, expected_value[i] == "nan:arithmetic"))
                 else:
                     # check the exact value
                     cs2.append(v)
