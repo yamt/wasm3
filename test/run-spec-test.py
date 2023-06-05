@@ -58,7 +58,7 @@ parser.add_argument("--format", choices=["raw", "hex", "fp"], default="hex")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--silent", action="store_true")
 parser.add_argument("--spec-dir")
-parser.add_argument("--spec-dir-raw")
+parser.add_argument("--spec-dir-raw", action="append", default=[])
 parser.add_argument("--spectest")
 parser.add_argument("file", nargs='*')
 
@@ -741,7 +741,9 @@ def confirmLoadFailure(wasm_module, test):
 if args.file:
     jsonFiles = args.file
 elif args.spec_dir_raw:
-    jsonFiles  = glob.glob(os.path.join(args.spec_dir_raw, "*.json"))
+    jsonFiles = []
+    for d in args.spec_dir_raw:
+        jsonFiles += glob.glob(os.path.join(d, "*.json"))
 else:
     jsonFiles  = glob.glob(os.path.join(spec_dir, "core", "*.json"))
     jsonFiles += glob.glob(os.path.join(spec_dir, "proposals", "sign-extension-ops", "*.json"))
