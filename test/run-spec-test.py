@@ -217,7 +217,7 @@ class Wasm3():
         self.t.start()
 
         try:
-            self._read_until("wasm3> ")
+            self._run_cmd("\n")
         except Exception as e:
             print(f"wasm3: Could not start: {e}")
 
