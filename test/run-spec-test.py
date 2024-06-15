@@ -853,7 +853,7 @@ for fn in jsonFiles:
             wasm_module = cmd["filename"]
             test.wasm = wasm_module
             test.expected_failure = cmd["text"]
-            if re.findall("\.wat$", wasm_module):
+            if re.findall("\\.wat$", wasm_module):
                 # i couldn't find a nice way to convert some of malformed
                 # modules to *.wasm.
                 # wast2json leaves them as "*.wat".
