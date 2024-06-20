@@ -803,6 +803,7 @@ for fn in jsonFiles:
                 test.type == "assert_return" or
                 test.type == "assert_trap" or
                 test.type == "assert_exhaustion" or
+                test.type == "assert_exception" or
                 test.type == "assert_return_canonical_nan" or
                 test.type == "assert_return_arithmetic_nan"):
 
@@ -826,6 +827,8 @@ for fn in jsonFiles:
                     test.expected_trap = "uninitialized element"
             elif test.type == "assert_exhaustion":
                 test.expected_trap = "stack overflow"
+            elif test.type == "assert_exception":
+                test.expected_trap = "uncaught exception"
             else:
                 stats.skipped += 1
                 warning(f"Skipped {test.source} ({test.type} not implemented)")
