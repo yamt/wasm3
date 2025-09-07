@@ -437,17 +437,23 @@ def normalizeNanInt(i, t, arith_expected):
         fracbits = 52
     expmask = ((1 << expbits) - 1) << fracbits
     if (i & expmask) == expmask:
+        # nan or inf
         fracmask = (1 << fracbits) - 1
         if (i & fracmask) != 0:
             canon = 1 << (fracbits - 1);
-            signmask = 1 << (expbits + fracbits)
+            # signmask = 1 << (expbits + fracbits)
             if (i & fracmask) == canon and not arith_expected:
-                # in wasm, nan with both sign are canonical
+                # canonical nan.
+                # we normalize the sign bit to 0.
                 i = expmask | canon
             elif (i & fracmask) >= canon:
+                # arithmetic nan.
+                # we normalize the sign bit to 0.
+                # we normalize the payload to 1 as we don't care
+                # the actual vaule for now.
                 i = (expmask | canon) + 1
             else:
-                # sNaN. do wo care?
+                # inf. we don't care.
                 pass
     return i
 
